@@ -1,130 +1,114 @@
 package com.example.seniorproject;
 /*
-public class LoginActivity {
-    package com.tomerpacific.todo.activities
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 
-import android.content.Intent
-import android.os.Bundle
-import android.view.KeyEvent
-import android.view.View
-import android.view.inputmethod.EditorInfo
-import android.widget.EditText
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.gms.tasks.OnCompleteListener
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.UserProfileChangeRequest
-import com.tomerpacific.todo.R
+import android.Manifest;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Toast;
 
-    class LoginActivity : AppCompatActivity() {
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
 
-        private var userEmail : String = ""
-        private var userPassword: String = ""
+import java.util.List;
+import java.util.Objects;
 
-        override fun onCreate(savedInstanceState: Bundle?) {
-            super.onCreate(savedInstanceState)
-            setContentView(R.layout.activity_login)
+import pub.dev.*;
 
-            // START 1 ---------------------- //
 
-            findViewById<EditText>(R.id.email_edit_text).apply {
-                setOnEditorActionListener {_, actionId, keyEvent ->
-                    if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE ||
-                            keyEvent == null ||
-                            keyEvent.keyCode == KeyEvent.KEYCODE_ENTER) {
-                        userEmail = text.toString()
-                    }
-                    false
-                }
+public class LoginActivity extends AppCompatActivity implements EasyPermissions.PermissionCallbacks {
+    private static final int RC_CALL_PHONE = 101;
+    private ActivityLoginBinding binding;
+    private FirebaseAuth firebaseAuth;
 
-                setOnFocusChangeListener {view, gainedFoucs ->
-                        userEmail = text.toString()
-                }
-            }
-
-            findViewById<EditText>(R.id.password_edit_text).apply {
-                setOnEditorActionListener {_, actionId, keyEvent ->
-                    if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE ||
-                            keyEvent == null ||
-                            keyEvent.keyCode == KeyEvent.KEYCODE_ENTER) {
-                        userPassword = text.toString()
-                    }
-                    false
-                }
-
-                setOnFocusChangeListener {view, gainedFoucs ->
-                        userPassword = text.toString()
-                }
-            }
-
-            // END 1 ---------------------------------------- //
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        binding = ActivityLoginBinding.inflate(getLayoutInflater());
+        View view = binding.getRoot();
+        setContentView(view);
+        handleClickListeners();
+        firebaseAuth = FirebaseAuth.getInstance();
+        if(firebaseAuth.getCurrentUser() != null && firebaseAuth.getCurrentUser().getEmail() != null) {
+            Toast.makeText(this, "Welcome back! " + firebaseAuth.getCurrentUser().getEmail(), Toast.LENGTH_LONG).show();
+            startActivity(new Intent(LoginActivity.this, MainActivity.class));
+            finish();
         }
-
-        override fun onStart() {
-            super.onStart()
-            FirebaseAuth.getInstance().currentUser?.let {
-                Intent(this@LoginActivity, MainActivity::class.java).apply {
-                    startActivity(this)
-                }
-            }
-        }
-
-        // START 2 ----------------------- //
-        fun loginUser(view : View) {
-
-            if (userEmail.isEmpty() || userPassword.isEmpty()) {
-                Toast.makeText(this, "Please make sure to fill in your email and password", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            FirebaseAuth.getInstance().signInWithEmailAndPassword(userEmail, userPassword)
-                    .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    updateFirebaseUserDisplayName()
-                } else {
-                    Toast.makeText(this, "An error has occurred during login. Please try again later.", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // END 2 ----------------------------- //
-
-        // START 3 --------------------------- //
-        fun signupUser(view: View) {
-
-            if (userEmail.isEmpty() || userPassword.isEmpty()) {
-                Toast.makeText(this, "Please make sure to fill in your email and password", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            FirebaseAuth.getInstance().createUserWithEmailAndPassword(userEmail, userPassword)
-                    .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    updateFirebaseUserDisplayName()
-                } else {
-                    Toast.makeText(this, "An error has occurred during signup. Please try again later.", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        private fun updateFirebaseUserDisplayName() {
-
-            FirebaseAuth.getInstance().currentUser?.apply {
-                val profileUpdates : UserProfileChangeRequest = UserProfileChangeRequest.Builder().setDisplayName(userEmail).build()
-                updateProfile(profileUpdates)?.addOnCompleteListener(OnCompleteListener {
-                    when(it.isSuccessful) {
-                        true -> apply {
-                            Intent(this@LoginActivity, MainActivity::class.java).apply {
-                                startActivity(this)
-                                finish()
-                            }
-                        }
-                        false -> Toast.makeText(this@LoginActivity, "Login has failed", Toast.LENGTH_SHORT).show()
-                    }
-                })
-            }
-        }
-        // END 3 ------------------------------------- //
 
     }
-}*/
+
+    private void handleClickListeners() {
+        binding.btnStop.setOnClickListener(view -> handlePermissionAndCall());
+        binding.btnLogin.setOnClickListener(view -> handleLogin());
+        binding.btnSignup.setOnClickListener(view -> startActivity(new Intent(LoginActivity.this, SignUpActivity.class)));
+    }
+
+    private void handleLogin() {
+        binding.evUserName.setError(null);
+        binding.evPassword.setError(null);
+        String userName = Objects.requireNonNull(binding.evUserName.getText()).toString().trim();
+        String password = Objects.requireNonNull(binding.evPassword.getText()).toString().trim();
+        if(userName.length() == 0) {
+            binding.evUserName.setError("Please enter username");
+        } else if(password.length() == 0) {
+            binding.evPassword.setError("Please enter password");
+        } else {
+            firebaseAuth.signInWithEmailAndPassword(binding.evUserName.getText().toString(), binding.evPassword.getText().toString())
+                    .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                        @Override
+                        public void onComplete(@NonNull Task<AuthResult> task) {
+                            if(task.isSuccessful()) {
+                                startActivity(new Intent(LoginActivity.this, MainActivity.class));
+                                finish();
+                            } else {
+                                Toast.makeText(LoginActivity.this, "Incorrect username or password.", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+
+
+        }
+    }
+
+    private void handlePermissionAndCall() {
+        String[] perms = {Manifest.permission.CALL_PHONE};
+        if (EasyPermissions.hasPermissions(this, perms)) {
+            callEmergency();
+        } else {
+            EasyPermissions.requestPermissions(this, getString(R.string.please_provide_call_permission),
+                    RC_CALL_PHONE, perms);
+        }
+
+    }
+
+    @AfterPermissionGranted(RC_CALL_PHONE)
+    private void callEmergency() {
+        Intent intent = new Intent(Intent.ACTION_CALL);
+        intent.setData(Uri.parse("tel:+911"));
+        startActivity(intent);
+    }
+
+    @Override
+    public void onPermissionsGranted(int requestCode, @NonNull List<String> perms) {
+        callEmergency();
+    }
+
+    @Override
+    public void onPermissionsDenied(int requestCode, @NonNull List<String> perms) {
+        if (EasyPermissions.somePermissionPermanentlyDenied(this, perms)) {
+            new AppSettingsDialog.Builder(this).build().show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this);
+    }
+}
+*/
